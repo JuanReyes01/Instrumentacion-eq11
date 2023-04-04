@@ -5,10 +5,13 @@
 #define canal_b  10
 #define DOUT  A1
 #define CLK  A0
+#define Step 4      // pin STEP de A4988 a pin 4
+#define Dir 5     // pin DIR de A4988 a pin 5
 HX711 balanza(DOUT, CLK);
 // Variables
+String ingreso;
+int pasos;
 bool inicio = true;
-String ingreso ;
 float peso_deseado = 0;
 float anadir = 0;
 float peso = 0;
@@ -21,6 +24,24 @@ float porc3;
 float peso_ant;
 float pesito;
 bool valido;
+
+
+/////////////////////////////////////////////////////////////////////////
+void mover(){
+  /*
+  Serial.println ("Cuántos pasos desea dar, 1 paso equivale a 1.8°");
+  ingreso  = Serial.readStringUntil('\n');
+  pasos = ingreso.toInt ();
+  Serial.println (pasos);
+  */
+  digitalWrite(Dir, (random(1,99)%2));
+  for(int i = 0; i < 200;i++){
+    digitalWrite(Step, 1); 
+    delay(15);
+    digitalWrite(Step, 0);
+    delay(5);       
+  } 
+  }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void servir(float peso, float peso_ant,int pwm, int adicion, float porc1, float porc2, float porc3){
   valido = true; 
@@ -33,11 +54,14 @@ void servir(float peso, float peso_ant,int pwm, int adicion, float porc1, float 
   if (valido == true){
     if (peso_deseado*porc1 >= peso)
       analogWrite(canal_a,255);
+      digitalWrite(Step, 0);
   if (peso_deseado*porc1 < peso <= peso_deseado*porc2)
-      analogWrite(canal_a,pwm);  
+      analogWrite(canal_a,pwm); 
+      digitalWrite(Step, 0);
   if (peso>= peso_deseado*porc3){
-        Serial.println("parar");
+        Serial.println("Mezclando ");
         analogWrite(canal_a,0);
+        mover();
     } 
   }
   }
@@ -96,8 +120,10 @@ void preguntar(){
   masa = peso;
   Serial.print("masa: ");
   Serial.println (masa);
-  if (ingreso == "SI")
+  delay(50);
+  if(ingreso!="")
   {
+    Serial.println("Ingresado")
    ; 
     }
   else {
@@ -120,9 +146,11 @@ void preguntar_peso(){
 void setup() {
   // put your setup code here, to run once:
   balanza.set_scale(1084.9);
-  Serial.begin(9600);
+  Serial.begin(115200);
   pinMode(canal_a,OUTPUT);
   pinMode(canal_b, OUTPUT);
+  pinMode(Step, OUTPUT);  // pin 4 como salida
+  pinMode(Dir, OUTPUT);   // pin 5 como salida
   delay(3000);
   pesito = balanza.get_units(20); // Entrega el peso actualment medido en gramos
   anadir = pesito-580;
@@ -141,6 +169,7 @@ void loop() {
   peso = -peso + 580+ anadir;
   Serial.println(peso,1);
   if (inicio == true){ 
+  
   servir(peso, peso_ant,pwm,adicion,porc1,porc2,porc3);  
   }
   peso_ant = peso;
