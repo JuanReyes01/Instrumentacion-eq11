@@ -68,6 +68,6 @@ Motor paso a paso con resolución de 1.8°
 
 ## Códigos presentes en el repo:
 * Balanza_Bomba:
-Por medio de la consola le pide al usuario que indique la cantidad de masa que desea al final de la mezcla, incluyendo soluto y solvente. Aún no es del todo preciso.
+Por medio de la consola le pide al usuario que indique la cantidad de masa que desea al final de la mezcla, incluyendo soluto y solvente. Aún no es del todo preciso. Al terminar de dispensar el líquido se activa una funci
 * motor_paso_paso:
 Por medio de la consola le pide al usuario que indique la cantidad de pasos que el motor debe dar.
