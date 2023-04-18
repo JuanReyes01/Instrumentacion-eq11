@@ -1,8 +1,8 @@
 // Librerias
 #include "HX711.h"
 // Pines
-#define canal_a  9
-#define canal_b  10
+#define canal_a  6
+#define canal_b  5
 #define DOUT  A1
 #define CLK  A0
 #define Dir 2     // pin DIR de A4988 a pin 5
@@ -53,7 +53,7 @@ float peso_acumulado = 0;
  ESTO NO LO HE HECHO PERO PODRIA SERVIR PARA INTEGRAR EL MOVIMIENTO DEL MOTOR CON EL RESTO DE COSAS
  */
 void mezclar(int rpm_deseado){
-  while (true){
+  /*while (true){
     if(Serial.available() > 0){
     String comando = Serial.readString();
     }
@@ -62,10 +62,28 @@ void mezclar(int rpm_deseado){
     delay(del);  // Cambiar del por delayMicroseconds
     digitalWrite(Step, 0);
     delay(del);  // Cambiar del por delayMicroseconds  
+    }*/
+    /*
+    del = 2000; // microsegundos
+    
+    digitalWrite(Step, 1); 
+    delayMicroseconds(del);  // Cambiar del por delayMicroseconds
+    digitalWrite(Step, 0);
+    delayMicroseconds(del);  // Cambiar del por delayMicroseconds  
+    String ingreso = Serial.readString();
+    Serial.print("Ingreso: ");
+    Serial.println(ingreso);
+    if(ingreso!="")
+    {
+       mezclar(rpm_deseado);
+      }
+    else {
+      ;
+      }    */  
     }
-  }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void agregar_solvente(float peso, float peso_ant,int pwm, int adicion, float porc1, float porc2, float porc3){
+  Serial.println ("Debe agregar el solvente");
   valido = true; 
   if (abs(peso) -abs( peso_ant) >= 20){
         Serial.println("invalido");
@@ -75,16 +93,17 @@ void agregar_solvente(float peso, float peso_ant,int pwm, int adicion, float por
         }  
   if (valido == true){
     if (peso_deseado*porc1 >= peso)
-      analogWrite(canal_a,255);
+      analogWrite(canal_b,255);
   if (peso_deseado*porc1 < peso <= peso_deseado*porc2)
-      analogWrite(canal_a,pwm); 
+      analogWrite(canal_b,pwm); 
       //digitalWrite(Step, 0);
   if (peso>= peso_deseado*porc3){
-        analogWrite(canal_a,0);
+        analogWrite(canal_b,0);
         Serial.println("Mayor, mezclando ");
         digitalWrite(Enable, LOW); //el motor es activo bajo
         agregar = false;
         iniciar_mezclar = true;
+        preguntar_rpms();
     } 
   }
   }
@@ -136,12 +155,14 @@ float definir_variables(float peso_deseado){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void agregar_soluto(){
   peso = -balanza.get_units(10); // Entrega el peso actualment medido en gramos
-  Serial.println(peso);
+  //Serial.println(peso);
   peso = peso - peso_inicial;
   String ingreso = Serial.readString();
+  Serial.print("Ingreso: ");
+  Serial.println(ingreso);
   Serial.print("Masa del soluto: ");
   Serial.println(peso);
-  if(ingreso == "1")
+  if(ingreso!="")
   {
      preguntar_solvente();
     }
@@ -165,6 +186,20 @@ void preguntar_solvente(){
     agregar = true;
     }
   } 
+  
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void preguntar_rpms(){
+  Serial.println("Introduzca las RPMs a las que desea mezclar"); 
+  String rpm_string = Serial.readString();
+  rpm_deseado = rpm_string.toInt();
+  if (rpm_deseado <10){
+      preguntar_rpms(); }    
+  else {
+    Serial.print("RPMs deseadas: ");
+    Serial.println(rpm_deseado);
+    mezclar(peso_deseado);
+    }
+  } 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
 void setup() {
   // put your setup code here, to run once:
@@ -178,15 +213,18 @@ void setup() {
   digitalWrite(Enable, HIGH);
   peso_inicial = -balanza.get_units(20); // No se por que carajo el peso estaba llegando negativo pero weno
   Serial.println(peso_inicial);
-  Serial.println ("Inicie a agregar el soluto y mande '1' si desea iniciar a agregar el solvente");
+  Serial.println ("Comience a agregar el soluto e ingrese '1' si desea iniciar a agregar el solvente");
   agregar_soluto();
   Serial.println("Dispensando");
  }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {  
   peso = -balanza.get_units(4) - peso_inicial; // Entrega el peso actualment medido en gramos
+  Serial.print("Masa actual: "); 
   Serial.println(peso); 
+  
   if (agregar == true){
+    
     agregar_solvente(peso, peso_ant,pwm,adicion,porc1,porc2,porc3);  
     }
   peso_ant = peso;
@@ -194,9 +232,7 @@ void loop() {
   if (Serial.available() > 0){
       String comando = Serial.readString();
    if (comando == "M"){ // Volver a mandar rpm del motor
-    Serial.println("Introduzca los rpms deseados");
-    String comando2 = Serial.readString();
-    rpm_deseado = comando2.toInt();
+    preguntar_rpms();
     }
   if (comando == "L"){ //Volver a servir liquido
     peso_acumulado = peso;
@@ -212,4 +248,4 @@ void loop() {
     }
 
 }
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
