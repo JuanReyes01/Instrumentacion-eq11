@@ -1,8 +1,9 @@
 // Librerias
+#include <Wire.h>
 #include "HX711.h"
 // Pines
-#define canal_a  6
-#define canal_b  5
+#define canal_a  5
+#define canal_b  6
 #define DOUT  A1
 #define CLK  A0
 #define Dir 2     // pin DIR de A4988 a pin 5
@@ -31,56 +32,6 @@ int del = 0;
 bool agregar = false;
 float peso_acumulado = 0;
 
-/////////////////////////////////////////////////////////////////////////
-/* IDEA: USAR UN INTERRUPT BASADO EN TIEMPO DE MANERA QUE CUANDO PASE EL DELAY QUE QUIERO, HACE EL STEP
- * EJ:
- * FUNCION ASOCIADA AL INTERRUPT:
- * void mover_motor(){
-    if ( paso == 1) {
-      paso = 0;
-    }
-    else if (paso == 0) {
-      paso = 1;
-    }
-    digitalWrite(Step, paso);
-  }}
- ACTIVACION DEL INTERRUPT:
- Inicial = millis();
- if ((Inicial - Final) > (tiempo_paso)){
- mover_motor();
- Final = Inicial;
- } 
- ESTO NO LO HE HECHO PERO PODRIA SERVIR PARA INTEGRAR EL MOVIMIENTO DEL MOTOR CON EL RESTO DE COSAS
- */
-void mezclar(int rpm_deseado){
-  /*while (true){
-    if(Serial.available() > 0){
-    String comando = Serial.readString();
-    }
-    del = rpm_deseado; //Poner aqui la funcion de conversion a delay
-    digitalWrite(Step, 1); 
-    delay(del);  // Cambiar del por delayMicroseconds
-    digitalWrite(Step, 0);
-    delay(del);  // Cambiar del por delayMicroseconds  
-    }*/
-    /*
-    del = 2000; // microsegundos
-    
-    digitalWrite(Step, 1); 
-    delayMicroseconds(del);  // Cambiar del por delayMicroseconds
-    digitalWrite(Step, 0);
-    delayMicroseconds(del);  // Cambiar del por delayMicroseconds  
-    String ingreso = Serial.readString();
-    Serial.print("Ingreso: ");
-    Serial.println(ingreso);
-    if(ingreso!="")
-    {
-       mezclar(rpm_deseado);
-      }
-    else {
-      ;
-      }    */  
-    }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void agregar_solvente(float peso, float peso_ant,int pwm, int adicion, float porc1, float porc2, float porc3){
   Serial.println ("Debe agregar el solvente");
@@ -197,7 +148,9 @@ void preguntar_rpms(){
   else {
     Serial.print("RPMs deseadas: ");
     Serial.println(rpm_deseado);
-    mezclar(peso_deseado);
+    Wire.beginTransmission(0x23); // transmit to device #8
+    Wire.write((uint8_t*)&rpm_deseado, sizeof(rpm_deseado)); // Send integer value to slave
+    Wire.endTransmission(); // End transmission
     }
   } 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
@@ -214,8 +167,11 @@ void setup() {
   peso_inicial = -balanza.get_units(20); // No se por que carajo el peso estaba llegando negativo pero weno
   Serial.println(peso_inicial);
   Serial.println ("Comience a agregar el soluto e ingrese '1' si desea iniciar a agregar el solvente");
-  agregar_soluto();
+  //agregar_soluto();
   Serial.println("Dispensando");
+  //attachInterrupt(digitalPinToInterrupt(TIMER1_OVF_vect), mezclar, OVERFLOW);
+  Wire.begin(); // join i2c bus (address optional for master)
+
  }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {  
@@ -223,29 +179,26 @@ void loop() {
   Serial.print("Masa actual: "); 
   Serial.println(peso); 
   
-  if (agregar == true){
-    
+  if (agregar == true){    
     agregar_solvente(peso, peso_ant,pwm,adicion,porc1,porc2,porc3);  
     }
   peso_ant = peso;
   
   if (Serial.available() > 0){
       String comando = Serial.readString();
-   if (comando == "M"){ // Volver a mandar rpm del motor
+   
+  if (comando == "M"){ // Volver a mandar rpm del motor
     preguntar_rpms();
     }
-  if (comando == "L"){ //Volver a servir liquido
+  else if (comando == "L"){ //Volver a servir liquido
     peso_acumulado = peso;
     peso_inicial = -balanza.get_units(20); // Entrega el peso actualment medido en gramos
     preguntar_solvente();
     }
-  if (comando == "P"){ // Volver a pesar soluto
+  else if (comando == "P"){ // Volver a pesar soluto
     peso_acumulado = peso;
     peso_inicial = -balanza.get_units(20); // Entrega el peso actualment medido en gramos
     agregar_soluto();
     }
 
-    }
-
-}
-
+    }}
