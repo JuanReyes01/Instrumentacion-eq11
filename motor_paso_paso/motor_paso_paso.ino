@@ -1,8 +1,9 @@
+#include <Arduino.h>
 #include <Wire.h>
-#define Dir 13     // pin DIR de A4988 a pin 5
-#define Step  12     // pin STEP de A4988 a pin 4
-#define Enable 14
-#define encoder_pin 2
+
+#define Dir 3     // pin DIR de A4988 a pin 5
+#define Step  2     // pin STEP de A4988 a pin 4
+#define encoder_pin 4
 int iteraciones = 0;
 int iteraciones2 = 0;
 int rpm_deseado = 100;
@@ -20,6 +21,8 @@ int new_del = 1400;
 unsigned long InitialTime = 0;
 unsigned long FinalTime;
 float RPMs;
+int recibido = 0;
+bool reci = false;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void mover(int new_del){
   
@@ -86,11 +89,14 @@ void receiveEvent(int numBytes) {
   int value = 0; // Variable to hold incoming integer value
 
   while (Wire.available() > 0) {
-    Wire.readBytes((uint8_t*)&rpm_deseado, sizeof(rpm_deseado)); // Read incoming integer value
-    //new_del = 800; 
-    //Serial.println(rpm_deseado);
+    Wire.readBytes((uint8_t*)&recibido, sizeof(rpm_deseado)); // Read incoming integer value
+    if(recibido>0){
+      rpm_deseado = recibido;
+      flag = false;
+      Serial.print("Recibido: ");
+      Serial.println(rpm_deseado);
+      }
   }
-  //delay(500);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,8 +108,6 @@ void setup() {
   pinMode(Step, OUTPUT);  // pin 4 como salida
   pinMode(Dir, OUTPUT); 
   pinMode(encoder_pin, INPUT); // pin 5 como salida
-  pinMode(Enable, OUTPUT);
-  digitalWrite(Enable, LOW);  
   }
 
 
