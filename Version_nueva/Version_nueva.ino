@@ -1,120 +1,205 @@
 #include <Arduino.h>
+// Librerias
 #include <Wire.h>
+#include "HX711.h"
+// Pines Motobomba
+#define canal_a  12
+#define canal_b  14
+// Pines Bal
+#define DOUT  26
+#define CLK  27
+HX711 balanza(DOUT, CLK);
 
-#define Dir 3     // pin DIR de A4988 a pin 5
-#define Step  2     // pin STEP de A4988 a pin 4
-#define encoder_pin 4
-int iteraciones = 0;
-int iteraciones2 = 0;
-int rpm_deseado = 100;
-int rpm_prom;
-unsigned long time_old;
-unsigned int pulses_per_turn = 20; // Depends on the number of spokes on the encoder wheel
-bool flag = false;
-int Encoder = 0;
-int Estado = 1;
-int Pulsos = 0;
-int count = 0;
-int PulsosRotacion = 20;
+#define encoder_pin 13
+// Variables
+int pasos;
+bool inicio = false;
+float peso_deseado = 0;
+float peso_inicial = 0;
+float peso = 0;
+int pwm;
+int adicion;
+float masa;
+float porc1;
+float porc2;
+float porc3;
+float peso_ant;
+float pesito;
+bool valido;
+bool continuar = false;
+bool iniciar_mezclar = false;
+int rpm_deseado = 0;
 int del = 0;
-int new_del = 1400;
-unsigned long InitialTime = 0;
-unsigned long FinalTime;
-float RPMs;
-int recibido = 0;
-bool reci = false;
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void mover(int new_del){
+bool agregar = false;
+float peso_acumulado = 0;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+void definir_variables(float peso_deseado){
+  if(peso_deseado <=50) {
+    Serial.println("MENOR A 50");
+    pwm = 180;
+    adicion = 0;
+    porc1 = 0.5;
+    porc2 = 0.6;
+    porc3 = 0.73;
+    }
+  else if( (50< peso_deseado) && (peso_deseado <= 100)) {
+    Serial.println("ENTRE 50 Y 100");
+    pwm = 180;
+    adicion = 1;
+    porc1 = 0.5;
+    porc2 = 0.7;
+    porc3 = 0.95;
+  }
+  else if((100 < peso_deseado)&& (peso_deseado <= 200)) {
+    Serial.println("ENTRE 100 Y 200");
+    pwm = 180;
+    adicion = 1;
+    porc1 = 0.7;
+    porc2 = 0.85;
+    porc3 = 0.98;
+  }
+  else if((200 < peso_deseado)&& (peso_deseado <= 300)) {
+    Serial.println("ENTRE 200 Y 300");
+    pwm = 180;
+    adicion = 0;
+    porc1 = 0.7;
+    porc2 = 0.85;
+    porc3 = 0.98;
+  }
+
+  else {
+    pwm = 180;
+    adicion = 0;
+    porc1 = 0.8;
+    porc2 = 0.90;
+    porc3 = 0.98;
+    }
+  }    
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void preguntar_solvente(){
+  continuar = false;
+  Serial.println("Introduzca el peso que desea completar con el solvente"); 
+  String peso_string = Serial.readString();
+  peso_deseado = peso_string.toInt();
+  if (peso_deseado <10){
+      preguntar_solvente(); }    
+  else {
+    Serial.print("Peso a completar: ");
+    Serial.println(peso_deseado);
+    definir_variables(peso_deseado);
+    peso_ant = balanza.get_units(4) - peso_inicial;
+    agregar = true;
+    }
+  } 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void agregar_soluto(){
+  peso = balanza.get_units(10) - peso_inicial; // Entrega el peso actualment medido en gramos
+  //Serial.println(peso);
+  String ingreso = Serial.readString();
+  Serial.print("Ingreso: ");
+  Serial.println(ingreso);
+  Serial.print("Masa del soluto: ");
+  Serial.println(peso);
+  if(ingreso!="")
+  {
+     preguntar_solvente();
+    }
+  else {
+    agregar_soluto();
+    }      
+  }
   
-  digitalWrite(Dir, 1);
-  digitalWrite(Step, 1);
-  delayMicroseconds(new_del);
-  digitalWrite(Step, 0);
-  delayMicroseconds(new_del); //delayMicroseconds
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void medir_rpm(){
-  Encoder = digitalRead(encoder_pin);
-  if (iteraciones2 == 0)
-  {
-    rpm_prom = 0;
-  }
-  if (Encoder == LOW && Estado == 1)
-  {
-    Estado = 0;
-  }
-  if (Encoder == HIGH && Estado == 0)
-  {
-    Pulsos++;
-    Estado = 1;
-  }
-  if (Pulsos == PulsosRotacion)
-  {
-    FinalTime = millis();
-    RPMs = 60000 / (FinalTime - InitialTime);
-    rpm_prom = rpm_prom + RPMs; 
-    Pulsos = 0;
-    InitialTime = FinalTime;
-    iteraciones2++;
-    if (iteraciones2 == 4) {
-      Serial.print("RPM = ");
-      Serial.println(rpm_prom/4);
-      iteraciones2= 0;
-      rpm_prom=0;
-      } 
-  }
-  }
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void corregir(int rpm_deseado){
-    if (((rpm_deseado - 1 <= RPMs) || (rpm_deseado + 1 >= RPMs) ) && (iteraciones == 5)) {
-    if (rpm_deseado == RPMs){
-      new_del = new_del;
-      flag = true;
-      }   
-    else if ((rpm_deseado > RPMs)&& (flag == false)) {
-      new_del = new_del-1;
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void preguntar_rpms(){
+  Serial.println("Introduzca las RPMs a las que desea mezclar"); 
+  String rpm_string = Serial.readString();
+  rpm_deseado = rpm_string.toInt();
+  if (rpm_deseado <10){
+      preguntar_rpms(); }    
+  else {
+    Serial.print("RPMs deseadas: ");
+    Serial.println(rpm_deseado);
+    Wire.beginTransmission(0x23); // transmit to device #8
+    Wire.write((uint8_t*)&rpm_deseado, sizeof(rpm_deseado)); // Send integer value to slave
+    Wire.endTransmission(); // End transmission
     }
-    else if ((rpm_deseado < RPMs) && (flag == false)) {
-      new_del = new_del+1;
-    }
-    iteraciones = 0;
-  }
-  iteraciones ++;
-  }
+  } 
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void receiveEvent(int numBytes) {
-  int value = 0; // Variable to hold incoming integer value
-
-  while (Wire.available() > 0) {
-    Wire.readBytes((uint8_t*)&recibido, sizeof(rpm_deseado)); // Read incoming integer value
-    if(recibido>0){
-      rpm_deseado = recibido;
-      flag = false;
-      Serial.print("Recibido: ");
-      Serial.println(rpm_deseado);
-      }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void agregar_solvente(float peso, float peso_ant,int pwm, int adicion, float porc1, float porc2, float porc3){
+  Serial.println ("Debe agregar el solvente");
+  valido = true; 
+  if (abs(peso) -abs( peso_ant) >= 20){
+        Serial.println("invalido");
+        analogWrite(canal_b,0);
+        delay(200);
+        valido = false;
+        }  
+  if (valido == true){
+    if (peso_deseado*porc1 >= peso)
+      //digitalWrite(canal_b,HIGH);
+      analogWrite(canal_b,250);
+  if (peso_deseado*porc1 < peso <= peso_deseado*porc2)
+      //digitalWrite(canal_b,HIGH);
+      //digitalWrite(Step, 0);
+      analogWrite(canal_b, 200);
+  if (peso>= peso_deseado*porc3){
+        analogWrite(canal_b,0);
+        Serial.println("Mayor, mezclando ");
+        agregar = false;
+        iniciar_mezclar = true;
+        //preguntar_rpms();
+    } 
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void setup() {
-  Wire.begin(0x23);                // join i2c bus with address #8
-  Wire.onReceive(receiveEvent); // register event
+  // put your setup code here, to run once:
+  balanza.set_scale(1084.9);
   Serial.begin(9600);
-  Serial.println ("Inicia");
-  pinMode(Step, OUTPUT);  // pin 4 como salida
-  pinMode(Dir, OUTPUT); 
-  pinMode(encoder_pin, INPUT); // pin 5 como salida
+  pinMode(canal_a,OUTPUT);
+  pinMode(canal_b, OUTPUT);
+  peso_inicial = balanza.get_units(40); // No se por que carajo el peso estaba llegando negativo pero weno
+  Serial.println(peso_inicial);
+  Serial.println ("CALIBRADO");
+  Wire.begin(); // join i2c bus (address optional for master)
+
+ }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void loop() { 
+  peso = balanza.get_units(4) - peso_inicial; // Entrega el peso actualment medido en gramos
+  Serial.print("Masa actual: "); 
+  Serial.println(peso); 
+  //Serial.println(agregar);
+
+  if (agregar == true){    
+    agregar_solvente(peso, peso_ant,pwm,adicion,porc1,porc2,porc3);  
+    }
+  peso_ant = peso;
+  
+  if (Serial.available() > 0){
+      String comando = Serial.readString();
+      Serial.println(comando);
+   
+    if (comando == "M"){ // Volver a mandar rpm del motor
+      preguntar_rpms();
+    }
+    else if (comando == "L"){ //Volver a servir liquido
+      agregar==true;
+      peso_acumulado = peso;
+      //peso_inicial = (balanza.get_units(20)); // Entrega el peso actualment medido en gramos
+      preguntar_solvente();
+      }
+    else if (comando == "P"){ // Volver a pesar soluto
+      peso_acumulado = peso;
+      peso_inicial = (balanza.get_units(20)); // Entrega el peso actualment medido en gramos
+      agregar_soluto();
+      }
+
   }
-
-
- 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void loop() {
-mover(new_del);
-medir_rpm(); 
-corregir(rpm_deseado); 
 }
