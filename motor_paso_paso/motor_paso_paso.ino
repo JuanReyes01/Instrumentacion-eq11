@@ -1,9 +1,7 @@
-#include <Arduino.h>
 #include <Wire.h>
-
-#define Dir 3     // pin DIR de A4988 a pin 5
-#define Step  2     // pin STEP de A4988 a pin 4
-#define encoder_pin 4
+#define Dir  9    // pin DIR de A4988 a pin 5
+#define Step  8     // pin STEP de A4988 a pin 4
+#define encoder_pin 10
 int iteraciones = 0;
 int iteraciones2 = 0;
 int rpm_deseado = 100;
@@ -23,6 +21,7 @@ unsigned long FinalTime;
 float RPMs;
 int recibido = 0;
 bool reci = false;
+int rpm_print = 0;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void mover(int new_del){
   
@@ -58,8 +57,9 @@ void medir_rpm(){
     InitialTime = FinalTime;
     iteraciones2++;
     if (iteraciones2 == 4) {
-      Serial.print("RPM = ");
-      Serial.println(rpm_prom/4);
+      rpm_print = rpm_prom/4;
+      //Serial.print("RPM = ");
+      //Serial.println(rpm_prom/4);
       iteraciones2= 0;
       rpm_prom=0;
       } 
@@ -93,18 +93,27 @@ void receiveEvent(int numBytes) {
     if(recibido>0){
       rpm_deseado = recibido;
       flag = false;
-      Serial.print("Recibido: ");
-      Serial.println(rpm_deseado);
+      //Serial.print("Recibido: ");
+      //Serial.println(rpm_deseado);
       }
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////
+void requestEvent() {
+  uint8_t highByte = ( rpm_print >> 8) & 0xFF;
+  uint8_t lowByte = rpm_print & 0xFF;
+  Wire.write(highByte);
+  Wire.write(lowByte);
+  }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
   Wire.begin(0x23);                // join i2c bus with address #8
   Wire.onReceive(receiveEvent); // register event
-  Serial.begin(9600);
-  Serial.println ("Inicia");
+  Wire.onRequest(requestEvent);
+  //Serial.begin(9600);
+  //Serial.println ("Inicia");
   pinMode(Step, OUTPUT);  // pin 4 como salida
   pinMode(Dir, OUTPUT); 
   pinMode(encoder_pin, INPUT); // pin 5 como salida
