@@ -1,17 +1,17 @@
 #include <Arduino.h>
-// Librerias
+# include <analogWrite.h>
 #include <Wire.h>
 #include "HX711.h"
 // Pines Motobomba
-#define canal_a  12
-#define canal_b  14
+#define canal_a  14
+#define canal_b  12
 // Pines Bal
 #define DOUT  26
 #define CLK  27
 HX711 balanza(DOUT, CLK);
-
-#define encoder_pin 13
+//#define encoder_pin 13
 // Variables
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int pasos;
 bool inicio = false;
 float peso_deseado = 0;
@@ -39,33 +39,41 @@ void definir_variables(float peso_deseado){
     Serial.println("MENOR A 50");
     pwm = 180;
     adicion = 0;
-    porc1 = 0.5;
-    porc2 = 0.6;
-    porc3 = 0.73;
+    porc1 = 0.8;
+    porc2 = 0.9;
+    porc3 = 0.93;
     }
   else if( (50< peso_deseado) && (peso_deseado <= 100)) {
     Serial.println("ENTRE 50 Y 100");
     pwm = 180;
     adicion = 1;
-    porc1 = 0.5;
-    porc2 = 0.7;
+    porc1 = 0.8;
+    porc2 = 0.9;
     porc3 = 0.95;
   }
-  else if((100 < peso_deseado)&& (peso_deseado <= 200)) {
+  else if((100 < peso_deseado)&& (peso_deseado <= 150)) {
     Serial.println("ENTRE 100 Y 200");
     pwm = 180;
     adicion = 1;
-    porc1 = 0.7;
-    porc2 = 0.85;
-    porc3 = 0.98;
+    porc1 = 0.8;
+    porc2 = 0.9;
+    porc3 = 0.965;
+  }
+  else if((150 < peso_deseado)&& (peso_deseado <= 200)) {
+    Serial.println("ENTRE 100 Y 200");
+    pwm = 180;
+    adicion = 1;
+    porc1 = 0.8;
+    porc2 = 0.9;
+    porc3 = 0.975;
   }
   else if((200 < peso_deseado)&& (peso_deseado <= 300)) {
     Serial.println("ENTRE 200 Y 300");
     pwm = 180;
     adicion = 0;
-    porc1 = 0.7;
-    porc2 = 0.85;
-    porc3 = 0.98;
+    porc1 = 0.8;
+    porc2 = 0.9;
+    porc3 = 0.985;
   }
 
   else {
@@ -135,18 +143,18 @@ void agregar_solvente(float peso, float peso_ant,int pwm, int adicion, float por
   if (abs(peso) -abs( peso_ant) >= 20){
         Serial.println("invalido");
         analogWrite(canal_b,0);
-        delay(200);
+        delay(20);
         valido = false;
         }  
   if (valido == true){
     if (peso_deseado*porc1 >= peso)
       //digitalWrite(canal_b,HIGH);
       analogWrite(canal_b,250);
-  if (peso_deseado*porc1 < peso <= peso_deseado*porc2)
+    if (peso_deseado*porc1 < peso <= peso_deseado*porc2)
       //digitalWrite(canal_b,HIGH);
       //digitalWrite(Step, 0);
       analogWrite(canal_b, 200);
-  if (peso>= peso_deseado*porc3){
+    if (peso>= peso_deseado*porc3){
         analogWrite(canal_b,0);
         Serial.println("Mayor, mezclando ");
         agregar = false;
@@ -183,23 +191,22 @@ void loop() {
   peso_ant = peso;
   
   if (Serial.available() > 0){
-      String comando = Serial.readString();
+      int comando = Serial.readString().toInt();
       Serial.println(comando);
    
-    if (comando == "M"){ // Volver a mandar rpm del motor
+    if (comando == 1){ // Volver a mandar rpm del motor
       preguntar_rpms();
     }
-    else if (comando == "L"){ //Volver a servir liquido
+    else if (comando == 2){ //Volver a servir liquido
       agregar==true;
       peso_acumulado = peso;
       //peso_inicial = (balanza.get_units(20)); // Entrega el peso actualment medido en gramos
       preguntar_solvente();
       }
-    else if (comando == "P"){ // Volver a pesar soluto
+    else if (comando  == 3){ // Volver a tarar
       peso_acumulado = peso;
       peso_inicial = (balanza.get_units(20)); // Entrega el peso actualment medido en gramos
       agregar_soluto();
       }
-
   }
 }
