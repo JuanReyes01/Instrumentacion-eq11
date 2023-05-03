@@ -1,5 +1,5 @@
 #include <Arduino.h>
-# include <analogWrite.h>
+//#include <analogWrite.h>
 #include <Wire.h>
 #include "HX711.h"
 // Pines Motobomba
@@ -32,6 +32,7 @@ int rpm_deseado = 0;
 int del = 0;
 bool agregar = false;
 float peso_acumulado = 0;
+int rpm_recibido = 100;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
 void definir_variables(float peso_deseado){
@@ -164,6 +165,8 @@ void agregar_solvente(float peso, float peso_ant,int pwm, int adicion, float por
   }
 }
 
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void setup() {
@@ -183,6 +186,16 @@ void loop() {
   peso = balanza.get_units(4) - peso_inicial; // Entrega el peso actualment medido en gramos
   Serial.print("Masa actual: "); 
   Serial.println(peso); 
+
+  //Para obtener RPM del segundo micro
+  Wire.requestFrom(0X23, 2);//Direccion, bytes
+  uint8_t highByte = Wire.read();
+  uint8_t lowByte = Wire.read();
+  rpm_recibido = (highByte << 8) | lowByte;
+  Serial.print("RPM actual: ");
+  Serial.println(rpm_recibido);
+
+  Serial.println("--------------");
   //Serial.println(agregar);
 
   if (agregar == true){    
@@ -209,4 +222,5 @@ void loop() {
       agregar_soluto();
       }
   }
+
 }
