@@ -1,15 +1,20 @@
 #include <Arduino.h>
-//#include <analogWrite.h>
 #include <Wire.h>
 #include "HX711.h"
-// Pines Motobomba
-#define canal_a  14
-#define canal_b  12
+#include <OneWire.h>
+#include <DallasTemperature.h>
+// Pines Motobomb
+#define canal_a  32
+#define canal_b  33
 // Pines Bal
 #define DOUT  26
 #define CLK  27
 HX711 balanza(DOUT, CLK);
-//#define encoder_pin 13
+// Pines Temp
+#define tempSensor 13
+OneWire oneWireObjeto(tempSensor);
+DallasTemperature sensorDS18B20(&oneWireObjeto);
+
 // Variables
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int pasos;
@@ -33,6 +38,7 @@ int del = 0;
 bool agregar = false;
 float peso_acumulado = 0;
 int rpm_recibido = 100;
+float temp = 0;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
 void definir_variables(float peso_deseado){
@@ -166,13 +172,14 @@ void agregar_solvente(float peso, float peso_ant,int pwm, int adicion, float por
 }
 
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void setup() {
-  // put your setup code here, to run once:
+
   balanza.set_scale(1084.9);
+  sensorDS18B20.begin(); 
   Serial.begin(9600);
+  Serial.println("HOLAAAAAAAAAAAAa");
   pinMode(canal_a,OUTPUT);
   pinMode(canal_b, OUTPUT);
   peso_inicial = balanza.get_units(40); // No se por que carajo el peso estaba llegando negativo pero weno
@@ -194,6 +201,12 @@ void loop() {
   rpm_recibido = (highByte << 8) | lowByte;
   Serial.print("RPM actual: ");
   Serial.println(rpm_recibido);
+
+  //Recibir valor temperatura
+  sensorDS18B20.requestTemperatures();
+  temp = sensorDS18B20.getTempCByIndex(0);
+  Serial.print("Temperatura actual: ");
+  Serial.println(temp);
 
   Serial.println("--------------");
   //Serial.println(agregar);

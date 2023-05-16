@@ -1,7 +1,8 @@
 #include <Wire.h>
-#define Dir  9    // pin DIR de A4988 a pin 5
-#define Step  8     // pin STEP de A4988 a pin 4
-#define encoder_pin 10
+#define Dir  19    // pin DIR de A4988 a pin 5
+#define Step  18     // pin STEP de A4988 a pin 4
+#define enable 5
+#define encoder_pin 34
 int iteraciones = 0;
 int iteraciones2 = 0;
 int rpm_deseado = 100;
@@ -117,6 +118,8 @@ void setup() {
   pinMode(Step, OUTPUT);  // pin 4 como salida
   pinMode(Dir, OUTPUT); 
   pinMode(encoder_pin, INPUT); // pin 5 como salida
+  pinMode(enable, OUTPUT);
+  digitalWrite(enable, LOW);
   }
 
 
